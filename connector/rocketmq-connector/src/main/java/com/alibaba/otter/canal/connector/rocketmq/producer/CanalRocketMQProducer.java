@@ -9,6 +9,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import com.alibaba.otter.canal.common.counter.TpsCounter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.rocketmq.acl.common.AclClientRPCHook;
 import org.apache.rocketmq.acl.common.SessionCredentials;
@@ -293,6 +294,10 @@ public class CanalRocketMQProducer extends AbstractMQProducer implements CanalMQ
 
     private void sendMessage(Message message, int partition) {
         try {
+            if (getMqProperties().getMaxTps() > 0) {
+                TpsCounter.getInstance(CanalRocketMQProducer.class.getName()+"$tpsCounter").waitTps(getMqProperties().getMaxTps());
+            }
+
             SendResult sendResult = this.defaultMQProducer.send(message, (mqs, msg, arg) -> {
                 if (partition >= mqs.size()) {
                     return mqs.get(partition % mqs.size());
@@ -344,6 +349,10 @@ public class CanalRocketMQProducer extends AbstractMQProducer implements CanalMQ
                 }
 
                 try {
+                    if (getMqProperties().getMaxTps() > 0) {
+                        TpsCounter.getInstance(CanalRocketMQProducer.class.getName()+"$tpsCounter").waitTps(getMqProperties().getMaxTps());
+                    }
+
                     // 阿里云RocketMQ暂不支持批量发送消息，当canal.mq.flatMessage = true时，会发送失败
                     SendResult sendResult = this.defaultMQProducer.send(messages, queue);
                     if (logger.isDebugEnabled()) {

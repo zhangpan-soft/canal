@@ -9,6 +9,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
+import com.alibaba.otter.canal.common.counter.TpsCounter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.Producer;
@@ -269,6 +270,9 @@ public class CanalKafkaProducer extends AbstractMQProducer implements CanalMQPro
         List<Future> futures = new ArrayList<>();
         // 异步发送，因为在partition hash的时候已经按照每个分区合并了消息，走到这一步不需要考虑单个分区内的顺序问题
         for (ProducerRecord record : records) {
+            if (getMqProperties().getMaxTps() > 0) {
+                TpsCounter.getInstance(CanalKafkaProducer.class.getName()+"$tpsCounter").waitTps(getMqProperties().getMaxTps());
+            }
             futures.add(producer.send(record));
         }
 

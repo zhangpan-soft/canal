@@ -5,6 +5,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.alibaba.otter.canal.common.counter.TpsCounter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -322,6 +323,9 @@ public class CanalPulsarMQProducer extends AbstractMQProducer implements CanalMQ
         Producer<byte[]> producer = getProducer(topic);
         byte[] msgBytes = CanalMessageSerializerUtil.serializer(msg, mqProperties.isFilterTransactionEntry());
         try {
+            if (getMqProperties().getMaxTps() > 0) {
+                TpsCounter.getInstance(CanalPulsarMQProducer.class.getName()+"$tpsCounter").waitTps(getMqProperties().getMaxTps());
+            }
             MessageId msgResultId = producer.newMessage()
                 .property(MSG_PROPERTY_PARTITION_NAME, String.valueOf(partitionNum))
                 .value(msgBytes)
@@ -349,6 +353,9 @@ public class CanalPulsarMQProducer extends AbstractMQProducer implements CanalMQ
         Producer<byte[]> producer = getProducer(topic);
         for (FlatMessage f : flatMessages) {
             try {
+                if (getMqProperties().getMaxTps() > 0) {
+                    TpsCounter.getInstance(CanalPulsarMQProducer.class.getName()+"$tpsCounter").waitTps(getMqProperties().getMaxTps());
+                }
                 MessageId msgResultId = producer.newMessage()
                     .property(MSG_PROPERTY_PARTITION_NAME, String.valueOf(partition))
                     .value(JSON.toJSONBytes(f, Feature.WriteNulls, JSONWriter.Feature.LargeObject))

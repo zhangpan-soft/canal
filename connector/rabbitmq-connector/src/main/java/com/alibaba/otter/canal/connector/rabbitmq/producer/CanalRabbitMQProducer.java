@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeoutException;
 
+import com.alibaba.otter.canal.common.counter.TpsCounter;
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -195,6 +196,9 @@ public class CanalRabbitMQProducer extends AbstractMQProducer implements CanalMQ
         // tips: 目前逻辑中暂不处理对exchange处理，请在Console后台绑定 才可使用routekey
         try {
             RabbitMQProducerConfig rabbitMQProperties = (RabbitMQProducerConfig) this.mqProperties;
+            if (getMqProperties().getMaxTps() > 0) {
+                TpsCounter.getInstance(CanalRabbitMQProducer.class.getName()+"$tpsCounter").waitTps(getMqProperties().getMaxTps());
+            }
             channel.basicPublish(rabbitMQProperties.getExchange(),
                 queueName,
                 MessageProperties.PERSISTENT_TEXT_PLAIN,
