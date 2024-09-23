@@ -335,28 +335,31 @@ public class CanalRocketMQProducer extends AbstractMQProducer implements CanalMQ
             // 批量发送
             List<MessageQueue> queues = topicInfo.getMessageQueueList();
             int size = queues.size();
-            if (size <= 0) {
+            if (size == 0) {
                 // 可能是第一次创建
                 for (Message message : messages) {
                     sendMessage(message, partition);
                 }
             } else {
-                MessageQueue queue;
-                if (partition >= size) {
-                    queue = queues.get(partition % size);
-                } else {
-                    queue = queues.get(partition);
-                }
+                int index = partition % size;
+                MessageQueue queue = queues.get(index);
 
                 try {
                     if (getMqProperties().getMaxTps() > 0) {
                         TpsCounter.getInstance(CanalRocketMQProducer.class.getName()+"$tpsCounter").waitTps(getMqProperties().getMaxTps());
                     }
 
-                    // 阿里云RocketMQ暂不支持批量发送消息，当canal.mq.flatMessage = true时，会发送失败
-                    SendResult sendResult = this.defaultMQProducer.send(messages, queue);
-                    if (logger.isDebugEnabled()) {
-                        logger.debug("Send Message Result: {}", sendResult);
+                    // 添加阿里云rocketmq判定, 如果是阿里云rocketmq, 并且是flatMessage = true , 则走普通消息
+                    if ("cloud".equalsIgnoreCase(getMqProperties().getAccessChannel()) && getMqProperties().isFlatMessage()){
+                        for (Message message : messages) {
+                            sendMessage(message, index);
+                        }
+                    } else {
+                        // 阿里云RocketMQ暂不支持批量发送消息，当canal.mq.flatMessage = true时，会发送失败
+                        SendResult sendResult = this.defaultMQProducer.send(messages, queue);
+                        if (logger.isDebugEnabled()) {
+                            logger.debug("Send Message Result: {}", sendResult);
+                        }
                     }
                 } catch (Throwable e) {
                     throw new RuntimeException(e);
